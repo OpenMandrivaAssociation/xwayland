@@ -15,6 +15,7 @@ BuildRequires:	pkgconfig(xtrans)
 BuildRequires:	pkgconfig(libgcrypt)
 BuildRequires:	pkgconfig(pixman-1)
 BuildRequires:	pkgconfig(xshmfence)
+BuildRequires:	pkgconfig(xkbfile)
 Requires:	x11-server-common
 Requires:	dri-drivers
 Obsoletes:	x11-server-xwayland < 21.0.99.901
