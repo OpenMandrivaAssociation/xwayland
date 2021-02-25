@@ -36,12 +36,12 @@ using wayland input devices for input and forwarding either
 the root window or individual top-level windows as wayland
 surfaces.
 
-%package -n devel
+%package devel
 Summary:	Development files for %{name}
 Group:		Development/C
 Requires:	%{name} = %{EVRD}
 
-%description -n devel
+%description devel
 Development files and headers for %{name}.
 
 %prep
@@ -74,5 +74,5 @@ rm -rf %{buildroot}%{_libdir}/xorg
 %{_bindir}/Xwayland
 %{_mandir}/man1/Xwayland.1*
 
-%files -n devel
+%files devel
 %{_libdir}/pkgconfig/xwayland.pc
