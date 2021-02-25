@@ -66,6 +66,10 @@ Development files and headers for %{name}.
 %install
 %meson_install
 
+# (tpg) remove useless files
+rm -rf %{buildroot}%{_mandir}/man1/Xserver.1*
+rm -rf %{buildroot}%{_libdir}/xorg
+
 %files
 %{_bindir}/Xwayland
 %{_mandir}/man1/Xwayland.1*
