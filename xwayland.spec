@@ -12,6 +12,7 @@ BuildRequires:	pkgconfig(wayland-protocols)
 BuildRequires:	pkgconfig(wayland-eglstream-protocols)
 BuildRequires:	pkgconfig(xproto)
 BuildRequires:	pkgconfig(xtrans)
+BuildRequires:	pkgconfig(libgcrypt)
 Requires:	x11-server-common
 Requires:	dri-drivers
 Obsoletes:	x11-server-xwayland < 21.0.99.901
@@ -35,7 +36,19 @@ Development files and headers for %{name}.
 %autosetup -p1
 
 %build
-%meson
+%meson \
+	-Dglamor=true \
+	-Ddri3=true \
+	-Dsha1=libgcrypt \
+	-Dxwayland-eglstream=true \
+	-Dbuilder_addr="%{disturl}" \
+	-Dbuilder_string="Build ID: %{name} %{version}-%{release}" \
+	-Dvendor_name="%{vendor}" \
+	-Dvendor_name_short="%{distsuffix}" \
+	-Dvendor_web="%{bugurl}" \
+	-Dxkb_output_dir=%{_localstatedir}/lib/xkb \
+	-Ddefault_font_path="catalogue:%{_sysconfdir}/X11/fontpath.d,built-ins"
+
 %meson_build
 
 %install
