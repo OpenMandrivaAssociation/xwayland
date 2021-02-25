@@ -42,7 +42,7 @@ Development files and headers for %{name}.
 	-Dglamor=true \
 	-Ddri3=true \
 	-Dsha1=libgcrypt \
-	-Dxwayland-eglstream=true \
+	-Dxwayland_eglstream=true \
 	-Dbuilder_addr="%{disturl}" \
 	-Dbuilder_string="Build ID: %{name} %{version}-%{release}" \
 	-Dvendor_name="%{vendor}" \
