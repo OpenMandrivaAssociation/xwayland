@@ -23,6 +23,8 @@ BuildRequires:	pkgconfig(libbsd)
 BuildRequires:	pkgconfig(libdrm)
 BuildRequires:	pkgconfig(epoxy)
 BuildRequires:	pkgconfig(dri)
+BuildRequires:	pkgconfig(gbm)
+BuildRequires:	pkgconfig(libtirpc)
 Requires:	x11-server-common
 Requires:	dri-drivers
 Obsoletes:	x11-server-xwayland < 21.0.99.901
