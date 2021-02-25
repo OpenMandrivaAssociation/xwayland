@@ -10,6 +10,7 @@ BuildRequires:	meson
 BuildRequires:	pkgconfig(wayland-client)
 BuildRequires:	pkgconfig(wayland-protocols)
 BuildRequires:	pkgconfig(wayland-eglstream-protocols)
+BuildRequires:	pkgconfig(xproto)
 Requires:	x11-server-common
 Requires:	dri-drivers
 Obsoletes:	x11-server-xwayland < 21.0.99.901
