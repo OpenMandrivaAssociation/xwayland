@@ -13,6 +13,8 @@ BuildRequires:	pkgconfig(wayland-eglstream-protocols)
 BuildRequires:	pkgconfig(xproto)
 BuildRequires:	pkgconfig(xtrans)
 BuildRequires:	pkgconfig(libgcrypt)
+BuildRequires:	pkgconfig(pixman-1)
+BuildRequires:	pkgconfig(xshmfence)
 Requires:	x11-server-common
 Requires:	dri-drivers
 Obsoletes:	x11-server-xwayland < 21.0.99.901
