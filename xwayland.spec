@@ -21,6 +21,7 @@ BuildRequires:	pkgconfig(xkbcomp)
 BuildRequires:	pkgconfig(xfont2)
 BuildRequires:	pkgconfig(libbsd)
 BuildRequires:	pkgconfig(libdrm)
+BuildRequires:	pkgconfig(epoxy)
 Requires:	x11-server-common
 Requires:	dri-drivers
 Obsoletes:	x11-server-xwayland < 21.0.99.901
