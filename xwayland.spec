@@ -7,6 +7,7 @@ Group:		System/X11
 Url:		http://www.x.org
 Source0:	https://www.x.org/releases/individual/xserver/%{name}-%{version}.tar.xz
 BuildRequires:	meson
+BuildRequires:	cmake
 BuildRequires:	pkgconfig(wayland-client)
 BuildRequires:	pkgconfig(wayland-protocols)
 BuildRequires:	pkgconfig(wayland-eglstream-protocols)
@@ -19,6 +20,7 @@ BuildRequires:	pkgconfig(xkbfile)
 BuildRequires:	pkgconfig(xkbcomp)
 BuildRequires:	pkgconfig(xfont2)
 BuildRequires:	pkgconfig(libbsd)
+BuildRequires:	pkgconfig(libdrm)
 Requires:	x11-server-common
 Requires:	dri-drivers
 Obsoletes:	x11-server-xwayland < 21.0.99.901
