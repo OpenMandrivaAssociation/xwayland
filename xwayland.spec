@@ -58,6 +58,7 @@ Development files and headers for %{name}.
 	-Dvendor_name="%{vendor}" \
 	-Dvendor_name_short="%{distsuffix}" \
 	-Dvendor_web="%{bugurl}" \
+	-Dxkb_dir="%{_datadir}/X11/xkb" \
 	-Dxkb_output_dir="%{_localstatedir}/lib/xkb" \
 	-Ddefault_font_path="catalogue:%{_sysconfdir}/X11/fontpath.d,built-ins"
 
