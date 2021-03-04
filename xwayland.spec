@@ -49,6 +49,7 @@ Development files and headers for %{name}.
 
 %build
 %meson \
+	-Dbuildtype=debug \
 	-Dglamor=true \
 	-Ddri3=true \
 	-Dsha1=libgcrypt \
