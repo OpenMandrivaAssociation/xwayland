@@ -1,7 +1,7 @@
 Summary:	X server that runs under Wayland
 Name:		xwayland
 Version:	21.0.99.902
-Release:	1
+Release:	2
 License:	MIT
 Group:		System/X11
 Url:		http://www.x.org
@@ -58,7 +58,7 @@ Development files and headers for %{name}.
 	-Dvendor_name="%{vendor}" \
 	-Dvendor_name_short="%{distsuffix}" \
 	-Dvendor_web="%{bugurl}" \
-	-Dxkb_output_dir=%{_localstatedir}/lib/xkb \
+	-Dxkb_output_dir="%{_localstatedir}/lib/xkb" \
 	-Ddefault_font_path="catalogue:%{_sysconfdir}/X11/fontpath.d,built-ins"
 
 %meson_build
