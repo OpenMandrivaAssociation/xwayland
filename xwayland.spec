@@ -1,11 +1,13 @@
 Summary:	X server that runs under Wayland
 Name:		xwayland
 Version:	21.0.99.902
-Release:	2
+Release:	3
 License:	MIT
 Group:		System/X11
 Url:		http://www.x.org
 Source0:	https://www.x.org/releases/individual/xserver/%{name}-%{version}.tar.xz
+# (tpg) fix 1146 issue on upstream xwayland
+Patch0:		xwayland-21.0.99.902-fixxkm-output-dir.patch
 BuildRequires:	meson
 BuildRequires:	cmake
 BuildRequires:	pkgconfig(wayland-client)
@@ -49,7 +51,6 @@ Development files and headers for %{name}.
 
 %build
 %meson \
-	--buildtype=debug \
 	-Dglamor=true \
 	-Ddri3=true \
 	-Dsha1=libgcrypt \
