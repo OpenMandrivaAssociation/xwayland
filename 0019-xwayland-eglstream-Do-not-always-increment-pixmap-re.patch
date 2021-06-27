@@ -1,0 +1,89 @@
+From 7b06e468b37164eeaa18fc32cba801de0eee4eb1 Mon Sep 17 00:00:00 2001
+From: Olivier Fourdan <ofourdan@redhat.com>
+Date: Tue, 4 May 2021 10:56:38 +0200
+Subject: [PATCH xserver 19/27] xwayland/eglstream: Do not always increment
+ pixmap refcnt on commit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Currently, the EGLstream backend would increment the pixmap refcount for
+each commit, and decrease that refcount on the wl_buffer release
+callback.
+
+But that's relying on the compositor sending us a release callback for
+each commit, otherwise the pixmap refcount will keep increasing and the
+pixmap will be leaked.
+
+So instead, increment the refcount on the pixmap only when we have not
+received a release notification for the wl_buffer, to avoid increasing
+the pixmap refcount more than once without a corresponding release
+event.
+
+This way, if the pixmap is still in use when released on the X11 side,
+the EGL stream will be kept until the compositor releases it.
+
+Signed-off-by: Olivier Fourdan <ofourdan@redhat.com>
+Suggested-by: Michel Dänzer <mdaenzer@redhat.com>
+Reviewed-by: Michel Dänzer <mdaenzer@redhat.com>
+(cherry picked from commit d85bfa6ab7495281516f3a4b05dc1ff0b2c4bf91)
+---
+ hw/xwayland/xwayland-glamor-eglstream.c | 21 +++++++++++++++++----
+ 1 file changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/hw/xwayland/xwayland-glamor-eglstream.c b/hw/xwayland/xwayland-glamor-eglstream.c
+index 6721acfe8..64f4e31f5 100644
+--- a/hw/xwayland/xwayland-glamor-eglstream.c
++++ b/hw/xwayland/xwayland-glamor-eglstream.c
+@@ -89,6 +89,7 @@ struct xwl_pixmap {
+     struct xwl_screen *xwl_screen;
+     struct wl_buffer *buffer;
+     struct xwl_eglstream_pending_stream *pending_stream;
++    Bool wait_for_buffer_release;
+ 
+     /* XWL_PIXMAP_EGLSTREAM. */
+     EGLStreamKHR stream;
+@@ -577,8 +578,16 @@ xwl_eglstream_queue_pending_stream(WindowPtr window, PixmapPtr pixmap)
+ static void
+ xwl_eglstream_buffer_release_callback(void *data)
+ {
+-    /* drop the reference we took in post_damage, freeing if necessary */
+-    dixDestroyPixmap(data, 0);
++    PixmapPtr pixmap = data;
++    struct xwl_pixmap *xwl_pixmap = xwl_pixmap_get(pixmap);
++
++    assert(xwl_pixmap);
++
++    if (xwl_pixmap->wait_for_buffer_release) {
++        xwl_pixmap->wait_for_buffer_release = FALSE;
++        /* drop the reference we took in the ready callback, freeing if necessary */
++        dixDestroyPixmap(pixmap, 0);
++    }
+ }
+ 
+ static const struct wl_buffer_listener xwl_eglstream_buffer_release_listener = {
+@@ -606,6 +615,7 @@ xwl_eglstream_create_pixmap_and_stream(struct xwl_screen *xwl_screen,
+ 
+     xwl_glamor_egl_make_current(xwl_screen);
+ 
++    xwl_pixmap->wait_for_buffer_release = FALSE;
+     xwl_pixmap->xwl_screen = xwl_screen;
+     xwl_pixmap->surface = EGL_NO_SURFACE;
+     xwl_pixmap->stream = eglCreateStreamKHR(xwl_screen->egl_display, NULL);
+@@ -762,8 +772,11 @@ xwl_glamor_eglstream_post_damage(struct xwl_window *xwl_window,
+         goto out;
+     }
+ 
+-    /* hang onto the pixmap until the compositor has released it */
+-    pixmap->refcnt++;
++    if (!xwl_pixmap->wait_for_buffer_release) {
++        /* hang onto the pixmap until the compositor has released it */
++        pixmap->refcnt++;
++        xwl_pixmap->wait_for_buffer_release = TRUE;
++    }
+ 
+ out:
+     /* Restore previous state */
+-- 
+2.31.1
+

@@ -1,0 +1,146 @@
+From a68e939342aed0ea11c737d166e506442e048e90 Mon Sep 17 00:00:00 2001
+From: Olivier Fourdan <ofourdan@redhat.com>
+Date: Tue, 27 Apr 2021 14:17:19 +0200
+Subject: [PATCH xserver 15/27] xwayland/eglstream: Drop the list of pending
+ streams
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Now that the pending stream is associated with the xwl_pixmap for
+EGLStream and the xwl_pixmap itself is associated to the pixmap, we have
+a reliable way to get to those data from any pending stream.
+
+As a result, the list of pending streams that we keep in the EGLStream
+global structure becomes useless.
+
+So we can drop the pending stream's xwl_pixmap and also the list of
+pending streams altogether, and save us a walk though that list for each
+callback.
+
+Signed-off-by: Olivier Fourdan <ofourdan@redhat.com>
+Suggested-by: Michel Dänzer <mdaenzer@redhat.com>
+Reviewed-by: Michel Dänzer <mdaenzer@redhat.com>
+(cherry picked from commit bee2ebb29f0999862ab39af26c673c00af40b082)
+---
+ hw/xwayland/xwayland-glamor-eglstream.c | 41 ++++++-------------------
+ 1 file changed, 9 insertions(+), 32 deletions(-)
+
+diff --git a/hw/xwayland/xwayland-glamor-eglstream.c b/hw/xwayland/xwayland-glamor-eglstream.c
+index 807bfcb1d..399a691d3 100644
+--- a/hw/xwayland/xwayland-glamor-eglstream.c
++++ b/hw/xwayland/xwayland-glamor-eglstream.c
+@@ -55,12 +55,9 @@ struct xwl_eglstream_pending_stream {
+     PixmapPtr pixmap;
+     WindowPtr window;
+ 
+-    struct xwl_pixmap *xwl_pixmap;
+     struct wl_callback *cb;
+ 
+     Bool is_valid;
+-
+-    struct xorg_list link;
+ };
+ 
+ struct xwl_eglstream_private {
+@@ -73,8 +70,6 @@ struct xwl_eglstream_private {
+ 
+     SetWindowPixmapProcPtr SetWindowPixmap;
+ 
+-    struct xorg_list pending_streams;
+-
+     Bool have_egl_damage;
+ 
+     GLint blit_prog;
+@@ -308,7 +303,6 @@ xwl_glamor_eglstream_destroy_pending_stream(struct xwl_eglstream_pending_stream
+ {
+     if (pending->cb)
+         wl_callback_destroy(pending->cb);
+-    xorg_list_del(&pending->link);
+     free(pending);
+ }
+ 
+@@ -514,28 +508,16 @@ xwl_eglstream_consumer_ready_callback(void *data,
+                                       struct wl_callback *callback,
+                                       uint32_t time)
+ {
+-    struct xwl_screen *xwl_screen = data;
++    struct xwl_eglstream_pending_stream *pending = data;
++    PixmapPtr pixmap = pending->pixmap;
++    struct xwl_pixmap *xwl_pixmap = xwl_pixmap_get(pixmap);
++    struct xwl_screen *xwl_screen = xwl_pixmap->xwl_screen;
+     struct xwl_eglstream_private *xwl_eglstream =
+         xwl_eglstream_get(xwl_screen);
+-    struct xwl_pixmap *xwl_pixmap;
+-    struct xwl_eglstream_pending_stream *pending;
+-    PixmapPtr pixmap;
+-    Bool found = FALSE;
+-
+-    xorg_list_for_each_entry(pending, &xwl_eglstream->pending_streams, link) {
+-        if (pending->cb == callback) {
+-            found = TRUE;
+-            break;
+-        }
+-    }
+-    assert(found);
+ 
+     wl_callback_destroy(callback);
+     pending->cb = NULL;
+ 
+-    xwl_pixmap = pending->xwl_pixmap;
+-    pixmap = pending->pixmap;
+-
+     if (!pending->is_valid) {
+         xwl_glamor_eglstream_remove_pending_stream(xwl_pixmap);
+         dixDestroyPixmap(pixmap, 0);
+@@ -571,11 +553,10 @@ static const struct wl_callback_listener consumer_ready_listener = {
+ };
+ 
+ static struct xwl_eglstream_pending_stream *
+-xwl_eglstream_queue_pending_stream(struct xwl_screen *xwl_screen,
+-                                   WindowPtr window, PixmapPtr pixmap)
++xwl_eglstream_queue_pending_stream(WindowPtr window, PixmapPtr pixmap)
+ {
+-    struct xwl_eglstream_private *xwl_eglstream =
+-        xwl_eglstream_get(xwl_screen);
++    struct xwl_pixmap *xwl_pixmap = xwl_pixmap_get(pixmap);
++    struct xwl_screen *xwl_screen = xwl_pixmap->xwl_screen;
+     struct xwl_eglstream_pending_stream *pending_stream;
+ 
+     DebugF("eglstream: win %d queues new pending stream for pixmap %p\n",
+@@ -584,14 +565,11 @@ xwl_eglstream_queue_pending_stream(struct xwl_screen *xwl_screen,
+     pending_stream = malloc(sizeof(*pending_stream));
+     pending_stream->window = window;
+     pending_stream->pixmap = pixmap;
+-    pending_stream->xwl_pixmap = xwl_pixmap_get(pixmap);
+     pending_stream->is_valid = TRUE;
+-    xorg_list_init(&pending_stream->link);
+-    xorg_list_add(&pending_stream->link, &xwl_eglstream->pending_streams);
+ 
+     pending_stream->cb = wl_display_sync(xwl_screen->display);
+     wl_callback_add_listener(pending_stream->cb, &consumer_ready_listener,
+-                             xwl_screen);
++                             pending_stream);
+ 
+     return pending_stream;
+ }
+@@ -667,7 +645,7 @@ xwl_eglstream_create_pixmap_and_stream(struct xwl_screen *xwl_screen,
+         xwl_eglstream->controller, xwl_window->surface, xwl_pixmap->buffer);
+ 
+     xwl_pixmap->pending_stream =
+-        xwl_eglstream_queue_pending_stream(xwl_screen, window, pixmap);
++        xwl_eglstream_queue_pending_stream(window, pixmap);
+ 
+ fail:
+     if (stream_fd >= 0)
+@@ -1249,7 +1227,6 @@ xwl_glamor_init_eglstream(struct xwl_screen *xwl_screen)
+                   &xwl_eglstream_private_key, xwl_eglstream);
+ 
+     xwl_eglstream->egl_device = egl_device;
+-    xorg_list_init(&xwl_eglstream->pending_streams);
+ 
+     xwl_screen->eglstream_backend.init_egl = xwl_glamor_eglstream_init_egl;
+     xwl_screen->eglstream_backend.init_wl_registry = xwl_glamor_eglstream_init_wl_registry;
+-- 
+2.31.1
+

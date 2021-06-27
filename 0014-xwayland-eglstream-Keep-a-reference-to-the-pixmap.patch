@@ -1,0 +1,73 @@
+From f76dd86f5bbdccb3655ac58365e4604d03de65f5 Mon Sep 17 00:00:00 2001
+From: Olivier Fourdan <ofourdan@redhat.com>
+Date: Wed, 14 Apr 2021 17:31:08 +0200
+Subject: [PATCH xserver 14/27] xwayland/eglstream: Keep a reference to the
+ pixmap
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Commit affc47452 - "xwayland: Drop the separate refcount for the
+xwl_pixmap" removed the separate reference counter for the xwl_pixmap
+which holds the EGLStream.
+
+While that works fine for the common case, if the window's pixmap is
+changed before the stream is ready, the older pixmap will be destroyed
+and the xwl_pixmap along with it, even if the compositor is still using
+the stream.
+
+The code that was removed with commit affc47452 was taking care of that
+by increasing the separate reference counter for the xwl_pixmap, but it
+no longer the case.
+
+As a result, we may end up with the EGL stream in the wrong state when
+trying to use it, which will cascade down into all sort of issues.
+
+To avoid the problem, increase the reference count on the pixmap when it
+is marked as invalid in EGLStream's SetWindowPixmap().
+
+This way, the xwl_pixmap and the EGLStream are kept until released by
+the compositor, even when the pixmap changes before stream is ready.
+
+Signed-off-by: Olivier Fourdan <ofourdan@redhat.com>
+Reviewed-by: Michel Dänzer <mdaenzer@redhat.com>
+Fixes: affc47452 xwayland: Drop the separate refcount for the xwl_pixmap
+https://gitlab.freedesktop.org/xorg/xserver/-/issues/1156
+(cherry picked from commit e19bf86c17ef9c802fea24410cc6b1f51a19ce7f)
+---
+ hw/xwayland/xwayland-glamor-eglstream.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/hw/xwayland/xwayland-glamor-eglstream.c b/hw/xwayland/xwayland-glamor-eglstream.c
+index 32f9a326f..807bfcb1d 100644
+--- a/hw/xwayland/xwayland-glamor-eglstream.c
++++ b/hw/xwayland/xwayland-glamor-eglstream.c
+@@ -355,6 +355,13 @@ xwl_eglstream_maybe_set_pending_stream_invalid(PixmapPtr pixmap)
+         return;
+ 
+     pending->is_valid = FALSE;
++
++    /* The compositor may still be using the stream, so we can't destroy
++     * it yet. We'll only have a guarantee that the stream is safe to
++     * destroy once we receive the pending wl_display_sync() for this
++     * stream
++     */
++    pending->pixmap->refcnt++;
+ }
+ 
+ static void
+@@ -530,8 +537,9 @@ xwl_eglstream_consumer_ready_callback(void *data,
+     pixmap = pending->pixmap;
+ 
+     if (!pending->is_valid) {
+-        xwl_eglstream_destroy_pixmap_stream(pending->xwl_pixmap);
+-        goto out;
++        xwl_glamor_eglstream_remove_pending_stream(xwl_pixmap);
++        dixDestroyPixmap(pixmap, 0);
++        return;
+     }
+ 
+     xwl_glamor_egl_make_current(xwl_screen);
+-- 
+2.31.1
+

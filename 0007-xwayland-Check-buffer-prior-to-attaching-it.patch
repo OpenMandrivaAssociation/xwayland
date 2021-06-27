@@ -1,0 +1,88 @@
+From 8a07b3e391bbed0b7d8f2ed37928b362eec3beee Mon Sep 17 00:00:00 2001
+From: Olivier Fourdan <ofourdan@redhat.com>
+Date: Mon, 29 Mar 2021 15:01:15 +0200
+Subject: [PATCH xserver 07/27] xwayland: Check buffer prior to attaching it
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+If the buffer is NULL, do not even try to attach it, and risk a Wayland
+protocol error which would be fatal to us.
+
+Signed-off-by: Olivier Fourdan <ofourdan@redhat.com>
+Reviewed-by: Martin Peres <martin.peres@mupuf.org>
+Reviewed-by: Michel Dänzer <mdaenzer@redhat.com>
+https://gitlab.freedesktop.org/xorg/xserver/-/issues/1156
+(cherry picked from commit 25d2f4948f0abd39e099b8ac69b7cb1dab38a10a)
+---
+ hw/xwayland/xwayland-cursor.c  | 11 +++++++++--
+ hw/xwayland/xwayland-present.c |  7 ++++++-
+ hw/xwayland/xwayland-window.c  |  5 +++++
+ 3 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/hw/xwayland/xwayland-cursor.c b/hw/xwayland/xwayland-cursor.c
+index fac8840e6..c4457cc2a 100644
+--- a/hw/xwayland/xwayland-cursor.c
++++ b/hw/xwayland/xwayland-cursor.c
+@@ -162,8 +162,15 @@ static void
+ xwl_cursor_attach_pixmap(struct xwl_seat *xwl_seat,
+                          struct xwl_cursor *xwl_cursor, PixmapPtr pixmap)
+ {
+-    wl_surface_attach(xwl_cursor->surface,
+-                      xwl_shm_pixmap_get_wl_buffer(pixmap), 0, 0);
++    struct wl_buffer *buffer;
++
++    buffer = xwl_shm_pixmap_get_wl_buffer(pixmap);
++    if (!buffer) {
++        ErrorF("cursor: Error getting buffer\n");
++        return;
++    }
++
++    wl_surface_attach(xwl_cursor->surface, buffer, 0, 0);
+     xwl_surface_damage(xwl_seat->xwl_screen, xwl_cursor->surface, 0, 0,
+                        xwl_seat->x_cursor->bits->width,
+                        xwl_seat->x_cursor->bits->height);
+diff --git a/hw/xwayland/xwayland-present.c b/hw/xwayland/xwayland-present.c
+index 7ba7efc11..83d67517a 100644
+--- a/hw/xwayland/xwayland-present.c
++++ b/hw/xwayland/xwayland-present.c
+@@ -443,6 +443,12 @@ xwl_present_flip(WindowPtr present_window,
+     if (!xwl_window)
+         return FALSE;
+ 
++    buffer = xwl_glamor_pixmap_get_wl_buffer(pixmap);
++    if (!buffer) {
++        ErrorF("present: Error getting buffer\n");
++        return FALSE;
++    }
++
+     damage_box = RegionExtents(damage);
+ 
+     event = malloc(sizeof *event);
+@@ -450,7 +456,6 @@ xwl_present_flip(WindowPtr present_window,
+         return FALSE;
+ 
+     pixmap->refcnt++;
+-    buffer = xwl_glamor_pixmap_get_wl_buffer(pixmap);
+ 
+     event->event_id = event_id;
+     event->xwl_present_window = xwl_present_window;
+diff --git a/hw/xwayland/xwayland-window.c b/hw/xwayland/xwayland-window.c
+index d0c7c581d..af4290ec7 100644
+--- a/hw/xwayland/xwayland-window.c
++++ b/hw/xwayland/xwayland-window.c
+@@ -805,6 +805,11 @@ xwl_window_post_damage(struct xwl_window *xwl_window)
+ #endif
+         buffer = xwl_shm_pixmap_get_wl_buffer(pixmap);
+ 
++    if (!buffer) {
++        ErrorF("Error getting buffer\n");
++        return;
++    }
++
+ #ifdef XWL_HAS_GLAMOR
+     if (xwl_screen->glamor)
+         xwl_glamor_post_damage(xwl_window, pixmap, region);
+-- 
+2.31.1
+

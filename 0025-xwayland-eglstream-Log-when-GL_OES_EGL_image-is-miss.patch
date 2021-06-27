@@ -1,0 +1,35 @@
+From 0cb42b7de629e74afed9b19d47672cebfe08f12e Mon Sep 17 00:00:00 2001
+From: Olivier Fourdan <ofourdan@redhat.com>
+Date: Thu, 20 May 2021 16:46:33 +0200
+Subject: [PATCH xserver 25/27] xwayland/eglstream: Log when GL_OES_EGL_image
+ is missing
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+That will dramatically affect performance, might as well log when we
+cannot use GL_OES_EGL_image with the NVIDIA closed-source driver.
+
+Signed-off-by: Olivier Fourdan <ofourdan@redhat.com>
+Reviewed-by: Michel Dänzer <mdaenzer@redhat.com>
+(cherry picked from commit 34a58d7714025bc1043bf5282358406eb10e4b8e)
+---
+ hw/xwayland/xwayland-glamor-eglstream.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/hw/xwayland/xwayland-glamor-eglstream.c b/hw/xwayland/xwayland-glamor-eglstream.c
+index 5e89849ff..0affc954c 100644
+--- a/hw/xwayland/xwayland-glamor-eglstream.c
++++ b/hw/xwayland/xwayland-glamor-eglstream.c
+@@ -1200,6 +1200,8 @@ xwl_glamor_eglstream_init_egl(struct xwl_screen *xwl_screen)
+             xwl_screen->glvnd_vendor = "nvidia";
+         else
+             ErrorF("DRI3 initialization failed. Performance will be affected.\n");
++    } else {
++        ErrorF("Driver lacks GL_OES_EGL_image, performance will be affected.\n");
+     }
+ 
+     return TRUE;
+-- 
+2.31.1
+

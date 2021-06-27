@@ -1,0 +1,125 @@
+From c28bb0e879775aec83f5554522724eee592685dc Mon Sep 17 00:00:00 2001
+From: Olivier Fourdan <ofourdan@redhat.com>
+Date: Wed, 31 Mar 2021 13:57:45 +0200
+Subject: [PATCH xserver 09/27] xwayland/glamor: Add return status to
+ post_damage
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+If the glamor backend failed to post damage, the caller should do the
+same to avoid a failure to attach the buffer to the Wayland surface.
+
+Change the API of Xwayland's glamor backend post_damage() to return a
+status so that xwl_window_post_damage() can tell whether the callee
+failed.
+
+Signed-off-by: Olivier Fourdan <ofourdan@redhat.com>
+Reviewed-by: Michel Dänzer <mdaenzer@redhat.com>
+https://gitlab.freedesktop.org/xorg/xserver/-/issues/1156
+(cherry picked from commit 252cbad316f43edc08aa5c844789398a58ba270c)
+---
+ hw/xwayland/xwayland-glamor-eglstream.c | 6 ++++--
+ hw/xwayland/xwayland-glamor.c           | 6 ++++--
+ hw/xwayland/xwayland-glamor.h           | 4 ++--
+ hw/xwayland/xwayland-window.c           | 8 ++++++--
+ 4 files changed, 16 insertions(+), 8 deletions(-)
+
+diff --git a/hw/xwayland/xwayland-glamor-eglstream.c b/hw/xwayland/xwayland-glamor-eglstream.c
+index c6e17bf8b..f64d05064 100644
+--- a/hw/xwayland/xwayland-glamor-eglstream.c
++++ b/hw/xwayland/xwayland-glamor-eglstream.c
+@@ -605,7 +605,7 @@ xwl_glamor_eglstream_allow_commits(struct xwl_window *xwl_window)
+     return FALSE;
+ }
+ 
+-static void
++static Bool
+ xwl_glamor_eglstream_post_damage(struct xwl_window *xwl_window,
+                                  PixmapPtr pixmap, RegionPtr region)
+ {
+@@ -625,7 +625,7 @@ xwl_glamor_eglstream_post_damage(struct xwl_window *xwl_window,
+          * flipping OpenGL or Vulkan window. In that case, we don't
+          * need to do the copy below.
+          */
+-        return;
++        return TRUE;
+ 
+     /* Unbind the framebuffer BEFORE binding the EGLSurface, otherwise we
+      * won't actually draw to it
+@@ -668,6 +668,8 @@ xwl_glamor_eglstream_post_damage(struct xwl_window *xwl_window,
+ 
+     /* hang onto the pixmap until the compositor has released it */
+     pixmap->refcnt++;
++
++    return TRUE;
+ }
+ 
+ static Bool
+diff --git a/hw/xwayland/xwayland-glamor.c b/hw/xwayland/xwayland-glamor.c
+index 9e44d5106..e940f9fd7 100644
+--- a/hw/xwayland/xwayland-glamor.c
++++ b/hw/xwayland/xwayland-glamor.c
+@@ -304,14 +304,16 @@ xwl_glamor_pixmap_get_wl_buffer(PixmapPtr pixmap)
+     return NULL;
+ }
+ 
+-void
++Bool
+ xwl_glamor_post_damage(struct xwl_window *xwl_window,
+                        PixmapPtr pixmap, RegionPtr region)
+ {
+     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+ 
+     if (xwl_screen->egl_backend->post_damage)
+-        xwl_screen->egl_backend->post_damage(xwl_window, pixmap, region);
++        return xwl_screen->egl_backend->post_damage(xwl_window, pixmap, region);
++
++    return TRUE;
+ }
+ 
+ Bool
+diff --git a/hw/xwayland/xwayland-glamor.h b/hw/xwayland/xwayland-glamor.h
+index 26ab78f04..cf3c4fba3 100644
+--- a/hw/xwayland/xwayland-glamor.h
++++ b/hw/xwayland/xwayland-glamor.h
+@@ -83,7 +83,7 @@ struct xwl_egl_backend {
+      * you should implement blitting from the glamor pixmap to the wayland
+      * pixmap here. Otherwise, this callback is optional.
+      */
+-    void (*post_damage)(struct xwl_window *xwl_window,
++    Bool (*post_damage)(struct xwl_window *xwl_window,
+                         PixmapPtr pixmap, RegionPtr region);
+ 
+     /* Called by Xwayland to confirm with the egl backend that the given
+@@ -117,7 +117,7 @@ void xwl_glamor_init_wl_registry(struct xwl_screen *xwl_screen,
+                                  uint32_t version);
+ Bool xwl_glamor_has_wl_interfaces(struct xwl_screen *xwl_screen,
+                                  struct xwl_egl_backend *xwl_egl_backend);
+-void xwl_glamor_post_damage(struct xwl_window *xwl_window,
++Bool xwl_glamor_post_damage(struct xwl_window *xwl_window,
+                             PixmapPtr pixmap, RegionPtr region);
+ Bool xwl_glamor_allow_commits(struct xwl_window *xwl_window);
+ void xwl_glamor_egl_make_current(struct xwl_screen *xwl_screen);
+diff --git a/hw/xwayland/xwayland-window.c b/hw/xwayland/xwayland-window.c
+index af4290ec7..00f161eda 100644
+--- a/hw/xwayland/xwayland-window.c
++++ b/hw/xwayland/xwayland-window.c
+@@ -811,8 +811,12 @@ xwl_window_post_damage(struct xwl_window *xwl_window)
+     }
+ 
+ #ifdef XWL_HAS_GLAMOR
+-    if (xwl_screen->glamor)
+-        xwl_glamor_post_damage(xwl_window, pixmap, region);
++    if (xwl_screen->glamor) {
++        if (!xwl_glamor_post_damage(xwl_window, pixmap, region)) {
++            ErrorF("glamor: Failed to post damage\n");
++            return;
++        }
++    }
+ #endif
+ 
+     wl_surface_attach(xwl_window->surface, buffer, 0, 0);
+-- 
+2.31.1
+

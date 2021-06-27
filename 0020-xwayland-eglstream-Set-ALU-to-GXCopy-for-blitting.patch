@@ -1,0 +1,51 @@
+From 9519ebe96344ec64e8f18eae2420df101c446a1a Mon Sep 17 00:00:00 2001
+From: Olivier Fourdan <ofourdan@redhat.com>
+Date: Fri, 30 Apr 2021 16:23:10 +0200
+Subject: [PATCH xserver 20/27] xwayland/eglstream: Set ALU to GXCopy for
+ blitting
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The EGLstream backend's post damage function uses a shader and
+glDrawArrays() to copy the data from the glamor's pixmap texture prior
+to do the eglSwapBuffers().
+
+However, glDrawArrays() can be affected by the GL state, and therefore
+not reliably produce the expected copy, causing the content of the
+buffer to be corrupted.
+
+Make sure to set the ALU to GXCopy prior to call glDrawArrays() to get
+the expected result.
+
+Signed-off-by: Olivier Fourdan <ofourdan@redhat.com>
+Suggested-by: Michel Dänzer <mdaenzer@redhat.com>
+(cherry picked from commit 012350e3db47fef0404346f55968032e62004fcf)
+---
+ hw/xwayland/xwayland-glamor-eglstream.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/hw/xwayland/xwayland-glamor-eglstream.c b/hw/xwayland/xwayland-glamor-eglstream.c
+index 64f4e31f5..2094d293a 100644
+--- a/hw/xwayland/xwayland-glamor-eglstream.c
++++ b/hw/xwayland/xwayland-glamor-eglstream.c
+@@ -33,6 +33,7 @@
+ #define EGL_NO_X11
+ #include <glamor_egl.h>
+ #include <glamor.h>
++#include <glamor_priv.h>
+ #include <glamor_transform.h>
+ #include <glamor_transfer.h>
+ 
+@@ -727,6 +728,8 @@ xwl_glamor_eglstream_post_damage(struct xwl_window *xwl_window,
+      * won't actually draw to it
+      */
+     xwl_glamor_egl_make_current(xwl_screen);
++    glamor_set_alu(xwl_screen->screen, GXcopy);
++
+     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+ 
+     if (eglGetCurrentSurface(EGL_READ) != xwl_pixmap->surface ||
+-- 
+2.31.1
+

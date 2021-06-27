@@ -1,0 +1,49 @@
+From 9601f2cc5c94b9db4c7f8da404dae53b9609c995 Mon Sep 17 00:00:00 2001
+From: Olivier Fourdan <ofourdan@redhat.com>
+Date: Mon, 19 Apr 2021 18:11:19 +0200
+Subject: [PATCH xserver 16/27] xwayland/eglstream: Do not commit without
+ surface
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The EGL surface for the xwl_pixmap is created once the stream is ready
+and valid.
+
+If the pixmap's EGL surface fails, for whatever reason, the xwl_pixmap
+will be unusable and will end up as an invalid wl_buffer.
+
+Make sure we do not allow commits in that case and recreate the
+xwl_pixmap/stream.
+
+Signed-off-by: Olivier Fourdan <ofourdan@redhat.com>
+Reviewed-by: Michel Dänzer <mdaenzer@redhat.com>
+https://gitlab.freedesktop.org/xorg/xserver/-/issues/1156
+(cherry picked from commit 098e0f52c088c6eb52c7e54c5a11cefabd480908)
+---
+ hw/xwayland/xwayland-glamor-eglstream.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/hw/xwayland/xwayland-glamor-eglstream.c b/hw/xwayland/xwayland-glamor-eglstream.c
+index 399a691d3..ce066cd9e 100644
+--- a/hw/xwayland/xwayland-glamor-eglstream.c
++++ b/hw/xwayland/xwayland-glamor-eglstream.c
+@@ -670,7 +670,14 @@ xwl_glamor_eglstream_allow_commits(struct xwl_window *xwl_window)
+ 
+             return FALSE;
+         } else {
+-            return TRUE;
++            if (xwl_pixmap->surface != EGL_NO_SURFACE)
++                return TRUE;
++
++            /* The pending stream got removed, we have a xwl_pixmap and
++             * yet we do not have a surface.
++             * So something went wrong with the surface creation, retry.
++             */
++            xwl_eglstream_destroy_pixmap_stream(xwl_pixmap);
+         }
+     }
+ 
+-- 
+2.31.1
+

@@ -1,0 +1,61 @@
+From 43d1648dc71d01628a6a65a62364c1a3994a88a8 Mon Sep 17 00:00:00 2001
+From: Erik Kurzinger <ekurzinger@nvidia.com>
+Date: Tue, 27 Apr 2021 07:23:44 -0400
+Subject: [PATCH xserver 05/27] xwayland-eglstream: fix X11 rendering to
+ flipping GL / VK window
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+If a window is being used for direct rendering with OpenGL or Vulkan, and is
+using the flipping path for presentation, it's pixmap will be set to a dma-buf
+backed pixmap created by the client-side GL driver. However, this means that
+xwl_glamor_eglstream_post_damage won't work since it requires that the pixmap
+has an EGLSurface that it can render to, which dma-buf backed pixmaps do not.
+
+In this case, though, xwl_glamor_eglstream_post_damage is not necessary since
+glamor will have rendered directly to the pixmap, so we can simply pass it
+directly to the compositor. There's no need for the intermediate copy we
+normally do in that function.
+
+Therefore, this change adds an early-return case to post_damage for dma-buf
+backed pixmaps, and removes the corresponding asserts from that function and
+allow_commits.
+
+Signed-off-by: Erik Kurzinger <ekurzinger@nvidia.com>
+Acked-by: Olivier Fourdan <ofourdan@redhat.com>
+Reviewed-by: Michel Dänzer <mdaenzer@redhat.com>
+(cherry picked from commit 4f6fbd5009ae533cf0b3bbe382502254f9276a01)
+---
+ hw/xwayland/xwayland-glamor-eglstream.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/hw/xwayland/xwayland-glamor-eglstream.c b/hw/xwayland/xwayland-glamor-eglstream.c
+index 2d8380e1f..17295f3bd 100644
+--- a/hw/xwayland/xwayland-glamor-eglstream.c
++++ b/hw/xwayland/xwayland-glamor-eglstream.c
+@@ -576,7 +576,6 @@ xwl_glamor_eglstream_allow_commits(struct xwl_window *xwl_window)
+     struct xwl_pixmap *xwl_pixmap = xwl_pixmap_get(pixmap);
+ 
+     if (xwl_pixmap) {
+-        assert(xwl_pixmap->type == XWL_PIXMAP_EGLSTREAM);
+         if (pending) {
+             /* Wait for the compositor to finish connecting the consumer for
+              * this eglstream */
+@@ -615,7 +614,12 @@ xwl_glamor_eglstream_post_damage(struct xwl_window *xwl_window,
+     };
+     GLint saved_vao;
+ 
+-    assert(xwl_pixmap->type == XWL_PIXMAP_EGLSTREAM);
++    if (xwl_pixmap->type != XWL_PIXMAP_EGLSTREAM)
++        /* This can happen if a client does X11 rendering on a
++         * flipping OpenGL or Vulkan window. In that case, we don't
++         * need to do the copy below.
++         */
++        return;
+ 
+     /* Unbind the framebuffer BEFORE binding the EGLSurface, otherwise we
+      * won't actually draw to it
+-- 
+2.31.1
+
