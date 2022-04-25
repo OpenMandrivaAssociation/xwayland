@@ -2,7 +2,7 @@
 
 Summary:	X server that runs under Wayland
 Name:		xwayland
-Version:	22.1.0
+Version:	22.1.1
 Release:	1
 License:	MIT
 Group:		System/X11
@@ -80,7 +80,7 @@ rm -Rf %{buildroot}%{_localstatedir}/lib/xkb
 
 %files
 %{_bindir}/Xwayland
-%{_mandir}/man1/Xwayland.1*
+%doc %{_mandir}/man1/Xwayland.1*
 
 %files devel
 %{_libdir}/pkgconfig/xwayland.pc
