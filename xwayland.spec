@@ -2,17 +2,18 @@
 
 Summary:	X server that runs under Wayland
 Name:		xwayland
-Version:	22.1.8
+Version:	23.1.0
 Release:	1
 License:	MIT
 Group:		System/X11
 Url:		http://www.x.org
 Source0:	https://www.x.org/releases/individual/xserver/%{name}-%{version}.tar.xz
 BuildRequires:	meson
-BuildRequires:	cmake
 BuildRequires:	pkgconfig(wayland-client)
 BuildRequires:	pkgconfig(wayland-protocols)
+%ifnarch %{armx} riscv64
 BuildRequires:	pkgconfig(wayland-eglstream-protocols)
+%endif
 BuildRequires:	pkgconfig(xproto)
 BuildRequires:	pkgconfig(xtrans)
 BuildRequires:	pkgconfig(libgcrypt)
@@ -56,7 +57,11 @@ Development files and headers for %{name}.
 	-Dglamor=true \
 	-Ddri3=true \
 	-Dsha1=libgcrypt \
+%ifnarch %{armx} riscv64
 	-Dxwayland_eglstream=true \
+%else
+	-Dxwayland_eglstream=false \
+%endif
 	-Dbuilder_addr="%{disturl}" \
 	-Dbuilder_string="Build ID: %{name} %{version}-%{release}" \
 	-Dvendor_name="%{vendor}" \
@@ -64,7 +69,9 @@ Development files and headers for %{name}.
 	-Dvendor_web="%{bugurl}" \
 	-Dxkb_dir="%{_datadir}/X11/xkb" \
 	-Dxkb_output_dir="%{_localstatedir}/lib/xkb" \
-	-Ddefault_font_path="catalogue:%{_sysconfdir}/X11/fontpath.d,built-ins"
+	-Ddefault_font_path="catalogue:%{_sysconfdir}/X11/fontpath.d,built-ins" \
+	-Dxselinux=false \
+	-Dxcsecurity=true
 
 %meson_build
 
@@ -80,6 +87,7 @@ rm -Rf %{buildroot}%{_localstatedir}/lib/xkb
 
 %files
 %{_bindir}/Xwayland
+%{_datadir}/applications/*.desktop
 %doc %{_mandir}/man1/Xwayland.1*
 
 %files devel
