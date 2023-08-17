@@ -2,7 +2,7 @@
 
 Summary:	X server that runs under Wayland
 Name:		xwayland
-Version:	23.1.2
+Version:	23.2.0
 Release:	1
 License:	MIT
 Group:		System/X11
@@ -91,4 +91,5 @@ rm -Rf %{buildroot}%{_localstatedir}/lib/xkb
 %doc %{_mandir}/man1/Xwayland.1*
 
 %files devel
+%optional %doc %{_docdir}/xorg-server/Xserver-DTrace.*
 %{_libdir}/pkgconfig/xwayland.pc
