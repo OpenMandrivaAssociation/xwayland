@@ -24,6 +24,9 @@ BuildRequires:	pkgconfig(xkbcomp)
 BuildRequires:	pkgconfig(xfont2)
 BuildRequires:	pkgconfig(libbsd)
 BuildRequires:	pkgconfig(libdrm)
+BuildRequires:	pkgconfig(libdecor-0)
+BuildRequires:	pkgconfig(libei-1.0)
+BuildRequires:	pkgconfig(liboeffis-1.0)
 BuildRequires:	pkgconfig(libxcvt)
 BuildRequires:	pkgconfig(epoxy)
 BuildRequires:	pkgconfig(dri)
@@ -57,11 +60,6 @@ Development files and headers for %{name}.
 	-Dglamor=true \
 	-Ddri3=true \
 	-Dsha1=libgcrypt \
-%ifnarch %{armx} riscv64
-	-Dxwayland_eglstream=true \
-%else
-	-Dxwayland_eglstream=false \
-%endif
 	-Dbuilder_addr="%{disturl}" \
 	-Dbuilder_string="Build ID: %{name} %{version}-%{release}" \
 	-Dvendor_name="%{vendor}" \
