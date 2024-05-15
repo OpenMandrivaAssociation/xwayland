@@ -2,11 +2,11 @@
 
 Summary:	X server that runs under Wayland
 Name:		xwayland
-Version:	23.2.6
+Version:	24.1.0
 Release:	1
 License:	MIT
 Group:		System/X11
-Url:		http://www.x.org
+Url:		https://www.x.org
 Source0:	https://www.x.org/releases/individual/xserver/%{name}-%{version}.tar.xz
 BuildRequires:	meson
 BuildRequires:	pkgconfig(wayland-client)
