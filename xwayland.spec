@@ -2,7 +2,7 @@
 
 Summary:	X server that runs under Wayland
 Name:		xwayland
-Version:	24.1.13
+Version:	24.1.14
 Release:	1
 License:	MIT
 Group:		System/X11
